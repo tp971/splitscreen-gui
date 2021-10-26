@@ -1,20 +1,11 @@
 plugins {
     id 'application'
-    id 'com.github.johnrengelman.shadow' version '6.1.0'
+    id 'com.github.johnrengelman.shadow' version '7.1.0'
     id 'java-library'
 }
 
 version = '0.1.0'
-
-application {
-    mainClass = 'de.tp971.splitscreen.Main'
-}
-
-jar {
-    manifest {
-        attributes 'Main-Class': 'de.tp971.splitscreen.Main'
-    }
-}
+mainClassName = 'de.tp971.splitscreen.Main'
 
 repositories {
     mavenCentral()
