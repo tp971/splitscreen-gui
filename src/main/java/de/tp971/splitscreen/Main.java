@@ -86,10 +86,10 @@ public class Main {
 	
 	private static Path getExecPath() {
 		try {
-			return Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toAbsolutePath();
+			return Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toAbsolutePath().getParent();
 		} catch (URISyntaxException e) {
 			e.printStackTrace();
-			System.exit(0);
+			System.exit(1);
 			return null;
 		}
 	}

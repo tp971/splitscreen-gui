@@ -27,7 +27,7 @@ TODO how to install dependencies
 ### Building
 
 1. Build or install [splitscreen-cli](https://github.com/tp971/splitscreen-cli).
-2. Run the project using `./gradlew run` or build a jar using `./gradlew shadowJar`, which creates a jar-file in build/libs.
+2. Run the project using `./gradlew run` or build a jar using `./gradlew shadowJar`, which creates a jar-file in `build/libs/`.
 
 splitscreen-gui searches for splitscreen-cli in the directory of the jar-file, the current working directory and PATH.
 For development, you can create a symlink to splitscreen-cli in the project's directory.

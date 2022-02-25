@@ -69,14 +69,12 @@ public class MainWindow extends JFrame {
 	private JComboBox<String> cmbResolution;
 	private JLabel lblFPS;
 	private JSpinner spinnerFPS;
-	private JLabel lblCutStart;
-	private JTextField txtCutStart;
-	private JLabel lblCutEnd;
-	private JTextField txtCutEnd;
 	private JLabel lblCompare;
 	private JComboBox<Compare> cmbCompare;
 	private JLabel lblPause;
 	private JTextField txtPause;
+	private JLabel lblEncoder;
+	private JComboBox<Encoder> cmbEncoder;
 	private JPanel panel_inputs;
 	private JScrollPane scrollPane;
 	private JPanel panel_inputs_buttons;
@@ -160,6 +158,12 @@ public class MainWindow extends JFrame {
 		});
 		
 		cmbCompare.setSelectedItem(Compare.TimeLoss);
+
+		cmbEncoder.addItem(new Encoder("x264", "CPU"));
+		cmbEncoder.addItem(new Encoder("nvenc", "GPU (NVIDIA)"));
+		cmbEncoder.addItem(new Encoder("amf", "GPU (AMD)"));
+		cmbEncoder.addItem(new Encoder("qsv", "GPU (Intel)"));
+		cmbEncoder.addItem(new Encoder("vaapi", "Linux VAAPI"));
 
 		list_inputs_model = new DefaultListModel<>();
 		list.setModel(list_inputs_model);
@@ -455,6 +459,7 @@ public class MainWindow extends JFrame {
 				private static final long serialVersionUID = 1L;
 				
 				private Process p;
+				private boolean aborted = false;
 
 				@Override
 				public void run() throws Exception {
@@ -465,7 +470,10 @@ public class MainWindow extends JFrame {
 							.redirectError(Redirect.INHERIT)
 							.start();
 						p.getInputStream().close();
-						p.waitFor();
+						int res = p.waitFor();
+						if(!aborted && res != 0)
+							JOptionPane.showMessageDialog(this,
+								"an error occured", getTitle(), JOptionPane.ERROR_MESSAGE);
 					} catch (InterruptedException e1) {
 						e1.printStackTrace();
 					}
@@ -473,6 +481,7 @@ public class MainWindow extends JFrame {
 
 				@Override
 				public void cancel() {
+					aborted = true;
 					p.destroy();
 				}
 				
@@ -494,6 +503,8 @@ public class MainWindow extends JFrame {
 			if(output == null)
 				return;
 
+			cmd.add("--encoder");
+			cmd.add(((Encoder)cmbEncoder.getSelectedItem()).getName());
 			cmd.add("--out");
 			cmd.add(output.toString());
 			cmd.add("--report");
@@ -503,6 +514,7 @@ public class MainWindow extends JFrame {
 				private static final long serialVersionUID = 1L;
 				
 				private Process p;
+				private boolean aborted = false;
 
 				@Override
 				public void run() throws Exception {
@@ -526,7 +538,10 @@ public class MainWindow extends JFrame {
 								setProgressText(frame + " / " + length + " (" + (frame * 100 / length) + "%)");
 							}
 						}
-						p.waitFor();
+						int res = p.waitFor();
+						if(!aborted && res != 0)
+							JOptionPane.showMessageDialog(this,
+								"an error occured", getTitle(), JOptionPane.ERROR_MESSAGE);
 					} catch (InterruptedException e1) {
 						e1.printStackTrace();
 					}
@@ -534,6 +549,7 @@ public class MainWindow extends JFrame {
 
 				@Override
 				public void cancel() {
+					aborted = true;
 					p.destroy();
 				}
 				
@@ -556,6 +572,8 @@ public class MainWindow extends JFrame {
 			if(!input.isComplete())
 				throw new RuntimeException("All videos must have complete splits.");
 		}
+		if(n_splits == 0)
+			throw new RuntimeException("No splits.");
 
 		String[] split = cmbResolution.getSelectedItem().toString().split("x");
 		if(split.length != 2)
@@ -564,8 +582,6 @@ public class MainWindow extends JFrame {
 		int height = Integer.parseInt(split[1]);
 		if(width <= 0 || height <= 0)
 			throw new RuntimeException("Invalid resolution");
-		double cut_start = Double.parseDouble(txtCutStart.getText());
-		double cut_end = Double.parseDouble(txtCutEnd.getText());
 		double pause = Double.parseDouble(txtPause.getText());
 		
 		var cmd = new ArrayList<String>();
@@ -574,10 +590,6 @@ public class MainWindow extends JFrame {
 		cmd.add(width + "x" + height);
 		cmd.add("--fps");
 		cmd.add(spinnerFPS.getValue().toString());
-		cmd.add("--cut-start");
-		cmd.add("" + cut_start);
-		cmd.add("--cut-end");
-		cmd.add("" + cut_end);
 		if(cmbCompare.getSelectedItem() != null)
 			switch((Compare)cmbCompare.getSelectedItem()) {
 			case TimeLoss:
@@ -594,6 +606,8 @@ public class MainWindow extends JFrame {
 	
 	private List<String> getCommandSplits() {
 		var cmd = new ArrayList<String>();
+		cmd.add("--input-args");
+		cmd.add("--");
 		for(int i = 0; i < list_inputs_model.getSize(); i++) {
 			SplitScreenInput input = list_inputs_model.get(i);
 			cmd.add("--");
@@ -913,7 +927,7 @@ public class MainWindow extends JFrame {
 		panel_settings = new JPanel();
 		panel_settings.setBorder(new TitledBorder(null, "Settings", TitledBorder.LEADING, TitledBorder.TOP, null, null));
 		panel_left.add(panel_settings, "cell 0 0,grow");
-		panel_settings.setLayout(new MigLayout("", "[][grow]", "[][][][][][]"));
+		panel_settings.setLayout(new MigLayout("", "[][grow]", "[][][][][]"));
 		
 		lblResolution = new JLabel("Resolution:");
 		panel_settings.add(lblResolution, "cell 0 0,alignx trailing");
@@ -929,35 +943,25 @@ public class MainWindow extends JFrame {
 		spinnerFPS.setModel(new SpinnerNumberModel(60, 1, null, 1));
 		panel_settings.add(spinnerFPS, "cell 1 1,growx");
 		
-		lblCutStart = new JLabel("Seconds before start:");
-		panel_settings.add(lblCutStart, "cell 0 2,alignx trailing");
-		
-		txtCutStart = new JTextField();
-		txtCutStart.setText("0.0");
-		panel_settings.add(txtCutStart, "cell 1 2,growx");
-		txtCutStart.setColumns(10);
-		
-		lblCutEnd = new JLabel("Seconds after end:");
-		panel_settings.add(lblCutEnd, "cell 0 3,alignx trailing");
-		
-		txtCutEnd = new JTextField();
-		txtCutEnd.setText("0.0");
-		panel_settings.add(txtCutEnd, "cell 1 3,growx");
-		txtCutEnd.setColumns(10);
-		
 		lblCompare = new JLabel("Compare:");
-		panel_settings.add(lblCompare, "cell 0 4,alignx trailing");
+		panel_settings.add(lblCompare, "cell 0 2,alignx trailing");
 		
 		cmbCompare = new JComboBox<>();
-		panel_settings.add(cmbCompare, "cell 1 4,growx");
+		panel_settings.add(cmbCompare, "cell 1 2,growx");
 		
 		lblPause = new JLabel("Pause after split:");
-		panel_settings.add(lblPause, "cell 0 5,alignx trailing");
+		panel_settings.add(lblPause, "flowy,cell 0 3,alignx trailing");
 		
 		txtPause = new JTextField();
 		txtPause.setText("2.0");
-		panel_settings.add(txtPause, "cell 1 5,growx");
+		panel_settings.add(txtPause, "cell 1 3,growx");
 		txtPause.setColumns(10);
+
+		lblEncoder = new JLabel("Encoder:");
+		panel_settings.add(lblEncoder, "cell 0 4,alignx trailing");
+
+		cmbEncoder = new JComboBox<>();
+		panel_settings.add(cmbEncoder, "cell 1 4,growx");
 		
 		panel_inputs = new JPanel();
 		panel_inputs.setBorder(new TitledBorder(null, "Videos", TitledBorder.LEADING, TitledBorder.TOP, null, null));
