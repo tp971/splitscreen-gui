@@ -127,7 +127,7 @@ public class MainWindow extends JFrame {
 	private boolean seekingBackwardsHack;
 	private JButton btnAbout;
 
-	public MainWindow() {
+	public MainWindow(List<Encoder> encoders) {
 		initialize();
 		
 		fileDialogs = new FileDialogHelper();
@@ -159,11 +159,11 @@ public class MainWindow extends JFrame {
 		
 		cmbCompare.setSelectedItem(Compare.TimeLoss);
 
-		cmbEncoder.addItem(new Encoder("x264", "CPU"));
-		cmbEncoder.addItem(new Encoder("nvenc", "GPU (NVIDIA)"));
-		cmbEncoder.addItem(new Encoder("amf", "GPU (AMD)"));
-		cmbEncoder.addItem(new Encoder("qsv", "GPU (Intel)"));
-		cmbEncoder.addItem(new Encoder("vaapi", "Linux VAAPI"));
+		for(var encoder: encoders) {
+			cmbEncoder.addItem(encoder);
+			if(encoder.isDefault())
+				cmbEncoder.setSelectedIndex(cmbEncoder.getItemCount() - 1);
+		}
 
 		list_inputs_model = new DefaultListModel<>();
 		list.setModel(list_inputs_model);
@@ -586,6 +586,7 @@ public class MainWindow extends JFrame {
 		
 		var cmd = new ArrayList<String>();
 		cmd.add(Main.findExecutable("splitscreen-cli").toString());
+		cmd.add("render");
 		cmd.add("--res");
 		cmd.add(width + "x" + height);
 		cmd.add("--fps");
@@ -642,6 +643,8 @@ public class MainWindow extends JFrame {
 	}
 	
 	private void gotoPrevFrame() {
+		if(seekingBackwards != null)
+			return;
 		seekingBackwards = playbin.queryPosition(Format.TIME);
 		playbin.seek(-1.0, Format.TIME, EnumSet.of(SeekFlags.FLUSH, SeekFlags.ACCURATE),
 			SeekType.SET, 0, SeekType.SET, seekingBackwards);

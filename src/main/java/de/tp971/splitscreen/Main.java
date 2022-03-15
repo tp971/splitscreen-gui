@@ -1,9 +1,13 @@
 package de.tp971.splitscreen;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.SwingUtilities;
@@ -20,9 +24,30 @@ public class Main {
 
 	public static void main(String[] args) throws IOException {
 		initGst(args);
+
+		var p = new ProcessBuilder(
+				Main.findExecutable("splitscreen-cli").toString(),
+				"list-encoders"
+			)
+			.redirectInput(Redirect.PIPE)
+			.redirectOutput(Redirect.PIPE)
+			.redirectError(Redirect.INHERIT)
+			.start();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+		var encoders = new ArrayList<Encoder>();
+		String line;
+		while((line = reader.readLine()) != null) {
+			var split = line.split("\t");
+			var name = split[0];
+			var desc = split[1];
+			var def = split.length == 3 && split[2].equals("default");
+			encoders.add(new Encoder(name, desc, def));
+		}
+
 		SwingUtilities.invokeLater(() -> {
 			FlatDarkLaf.setup();
-			new MainWindow().setVisible(true);
+			new MainWindow(encoders).setVisible(true);
 		});
 	}
 	
